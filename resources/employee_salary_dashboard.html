@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee Salary Dashboard</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .chart {
+      width: 45%;
+      min-width: 400px;
+    }
+    #upload-section {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Interactive Employee Salary Dashboard</h1>
+  <div id="upload-section">
+    <label for="file-input">Upload Employee Salary JSON File:</label>
+    <input type="file" id="file-input" accept="application/json">
+  </div>
+
+  <div class="container">
+    <div id="total-salary-chart" class="chart"></div>
+    <div id="salary-distribution-chart" class="chart"></div>
+    <div id="effective-date-chart" class="chart"></div>
+    <div id="salary-components-chart" class="chart"></div>
+    <div id="top-least-paid-chart" class="chart"></div>
+  </div>
+
+  <script>
+    document.getElementById('file-input').addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!Array.isArray(data) || data.length === 0) {
+            alert('Invalid JSON format or empty data.');
+            return;
+          }
+          generateDashboard(data);
+        } catch (error) {
+          alert('Error parsing JSON file: ' + error.message);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    function generateDashboard(data) {
+      const validData = data.filter(item => item.Salary && !isNaN(parseFloat(item.Salary)));
+      if (validData.length === 0) {
+        alert('No valid data available to generate the dashboard.');
+        return;
+      }
+
+      const employeeNames = validData.map(item => item.Name || 'Unknown');
+      const salaries = validData.map(item => parseFloat(item.Salary));
+      const joiningDates = validData.map(item => item["Joining Date"] || 'Unknown');
+
+      // 1. Total Salary Expense Over Time
+      const totalSalaryTrace = {
+        x: joiningDates,
+        y: salaries,
+        type: 'scatter',
+        mode: 'lines+markers',
+        name: 'Total Salary'
+      };
+      Plotly.newPlot('total-salary-chart', [totalSalaryTrace], {
+        title: 'Total Salary Expense Over Time',
+        xaxis: { title: 'Joining Date' },
+        yaxis: { title: 'Salary (USD)' }
+      });
+
+      // 2. Employee Salary Distribution (Pie Chart)
+      const salaryRanges = {
+        '<50k': 0,
+        '50k-75k': 0,
+        '>75k': 0
+      };
+      salaries.forEach(salary => {
+        if (salary < 50000) salaryRanges['<50k']++;
+        else if (salary <= 75000) salaryRanges['50k-75k']++;
+        else salaryRanges['>75k']++;
+      });
+      const pieData = [{
+        labels: Object.keys(salaryRanges),
+        values: Object.values(salaryRanges),
+        type: 'pie'
+      }];
+      Plotly.newPlot('salary-distribution-chart', pieData, {
+        title: 'Employee Salary Distribution'
+      });
+
+      // 3. Salary by Joining Date (Bar Chart)
+      const effectiveDateData = {
+        x: joiningDates,
+        y: salaries,
+        type: 'bar'
+      };
+      Plotly.newPlot('effective-date-chart', [effectiveDateData], {
+        title: 'Salary by Joining Date',
+        xaxis: { title: 'Joining Date' },
+        yaxis: { title: 'Salary (USD)' }
+      });
+
+      // 4. Role Breakdown (Pie Chart)
+      const roleCounts = {};
+      validData.forEach(item => {
+        const role = item.Role || 'Unknown';
+        roleCounts[role] = (roleCounts[role] || 0) + 1;
+      });
+      const roleData = [{
+        labels: Object.keys(roleCounts),
+        values: Object.values(roleCounts),
+        type: 'pie'
+      }];
+      Plotly.newPlot('salary-components-chart', roleData, {
+        title: 'Role Breakdown'
+      });
+
+      // 5. Top-Paid vs. Least-Paid Employees
+      const sortedData = validData.sort((a, b) => b.Salary - a.Salary);
+      const topPaid = sortedData.slice(0, 5);
+      const leastPaid = sortedData.slice(-5);
+
+      const topLeastPaidTrace = {
+        x: [...topPaid.map(item => item.Name || 'Unknown'), ...leastPaid.map(item => item.Name || 'Unknown')],
+        y: [...topPaid.map(item => item.Salary), ...leastPaid.map(item => item.Salary)],
+        type: 'bar',
+        marker: { color: [...Array(5).fill('green'), ...Array(5).fill('red')] }
+      };
+      Plotly.newPlot('top-least-paid-chart', [topLeastPaidTrace], {
+        title: 'Top-Paid vs. Least-Paid Employees',
+        xaxis: { title: 'Employee Name' },
+        yaxis: { title: 'Salary (USD)' }
+      });
+    }
+  </script>
+</body>
+</html>
