@@ -7,7 +7,7 @@ import java.net.http.HttpResponse;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class OSDMCApiCaller {
+public class EnterpriseApiCaller {
 
 	public static void main(String[] args) {
 		try {
